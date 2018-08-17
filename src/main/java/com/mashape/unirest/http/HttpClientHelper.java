@@ -27,6 +27,7 @@ package com.mashape.unirest.http;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -136,13 +137,25 @@ public class HttpClientHelper {
 		org.apache.http.HttpResponse response;
 		try {
 			response = client.execute(requestObj);
-			HttpResponse<T> httpResponse = new HttpResponse<T>(response, responseClass);
-			requestObj.releaseConnection();
+			HttpResponse<T> httpResponse = null;
+			//if java.io.InputStream is the responseClass, store the
+			//reference to requestObj so we can kill it later.
+			//
+			if (InputStream.class.equals(responseClass)) {
+			    httpResponse = new HttpResponse<T>(response, responseClass, requestObj);
+			} else {
+			    httpResponse = new HttpResponse<T>(response, responseClass);
+			}
 			return httpResponse;
 		} catch (Exception e) {
 			throw new UnirestException(e);
 		} finally {
-			requestObj.releaseConnection();
+		    //for inputstream, we can't close it now. Client will need to close
+		    //it once the download is done.
+		    //
+		    if (!InputStream.class.equals(responseClass)) {
+		        requestObj.releaseConnection();
+		    }
 		}
 	}
 
